@@ -446,7 +446,7 @@ section {
     background: var(--light-bg);
     border-radius: 10px;
     transition: all 0.3s ease;
-    width: 384px;
+    width: 284px;
     max-width: 100%;
     min-width: 0;
     margin: 0 auto;
