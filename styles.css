@@ -446,6 +446,10 @@ section {
     background: var(--light-bg);
     border-radius: 10px;
     transition: all 0.3s ease;
+    width: 384px;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0 auto;
 }
 
 .contact-email {
@@ -620,6 +624,10 @@ section {
 
     .contact-methods {
         grid-template-columns: 1fr;
+    }
+
+    .contact-method {
+        width: 100%;
     }
 }
 
