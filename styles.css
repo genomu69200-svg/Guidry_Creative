@@ -433,9 +433,10 @@ section {
 }
 
 .contact-methods {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
     max-width: 900px;
     margin: 0 auto;
 }
@@ -449,7 +450,6 @@ section {
     width: 185px;
     max-width: 100%;
     min-width: 0;
-    margin: 0 auto;
 }
 
 .contact-email {
@@ -619,10 +619,6 @@ section {
     }
 
     .projects-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .contact-methods {
         grid-template-columns: 1fr;
     }
 
