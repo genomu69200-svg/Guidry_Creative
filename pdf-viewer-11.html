@@ -255,32 +255,62 @@
                 container.innerHTML = '';
                 var numPages = pdf.numPages;
 
-                function renderPage(pageNum) {
-                    return pdf.getPage(pageNum).then(function(page) {
-                        var containerWidth = container.clientWidth - 32;
-                        var defaultViewport = page.getViewport({ scale: 1 });
-                        var scale = containerWidth / defaultViewport.width;
-                        if (scale > 2) scale = 2;
-                        var viewport = page.getViewport({ scale: scale });
+                // Matches this PDF's "Two Page View" setup in Acrobat: the front
+                // and back covers display alone, and the inside pages display
+                // together as a single spread.
+                function buildGroups(numPages) {
+                    var groups = [];
+                    if (numPages < 1) return groups;
+                    groups.push([1]);
+                    var i = 2;
+                    while (i <= numPages) {
+                        if (i + 1 <= numPages) {
+                            groups.push([i, i + 1]);
+                            i += 2;
+                        } else {
+                            groups.push([i]);
+                            i += 1;
+                        }
+                    }
+                    return groups;
+                }
 
-                        var canvas = document.createElement('canvas');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        container.appendChild(canvas);
+                function renderGroup(pageNums) {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'center';
+                    row.style.gap = '0px';
 
-                        var context = canvas.getContext('2d');
-                        return page.render({ canvasContext: context, viewport: viewport }).promise;
+                    var containerWidth = container.clientWidth - 32;
+                    var rowWidth = pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth;
+
+                    return Promise.all(pageNums.map(function(pageNum) {
+                        return pdf.getPage(pageNum).then(function(page) {
+                            var defaultViewport = page.getViewport({ scale: 1 });
+                            var scale = rowWidth / defaultViewport.width;
+                            if (scale > 2) scale = 2;
+                            var viewport = page.getViewport({ scale: scale });
+
+                            var canvas = document.createElement('canvas');
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            row.appendChild(canvas);
+
+                            var context = canvas.getContext('2d');
+                            return page.render({ canvasContext: context, viewport: viewport }).promise;
+                        });
+                    })).then(function() {
+                        container.appendChild(row);
                     });
                 }
 
+                var groups = buildGroups(numPages);
                 var chain = Promise.resolve();
-                for (var i = 1; i <= numPages; i++) {
-                    (function(pageNum) {
-                        chain = chain.then(function() {
-                            return renderPage(pageNum);
-                        });
-                    })(i);
-                }
+                groups.forEach(function(pageNums) {
+                    chain = chain.then(function() {
+                        return renderGroup(pageNums);
+                    });
+                });
             }).catch(function(error) {
                 console.error('PDF load error:', error);
                 container.innerHTML =
