@@ -282,7 +282,7 @@
                     row.style.gap = '0px';
 
                     var containerWidth = container.clientWidth - 32;
-                    var rowWidth = pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth;
+                    var rowWidth = pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth * 0.8;
 
                     return Promise.all(pageNums.map(function(pageNum) {
                         return pdf.getPage(pageNum).then(function(page) {
