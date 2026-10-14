@@ -306,6 +306,11 @@ section {
 .skill-card p {
     color: var(--text-color);
     line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.skill-card p:last-child {
+    margin-bottom: 0;
 }
 
 /* ===== Projects Section ===== */
