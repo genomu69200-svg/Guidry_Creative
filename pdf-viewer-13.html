@@ -113,7 +113,6 @@
             box-shadow: var(--shadow-lg);
             border-radius: 8px;
             overflow: hidden;
-            min-height: 800px;
             display: flex;
             flex-direction: column;
         }
@@ -203,10 +202,6 @@
             .pdf-controls {
                 justify-content: center;
             }
-
-            .pdf-viewer-wrapper {
-                min-height: 600px;
-            }
         }
     </style>
 </head>
@@ -253,7 +248,7 @@
 
             pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
                 container.innerHTML = '';
-                var numPages = pdf.numPages;
+                var numPages = pdf.numPages - 1;
 
                 // Render every page at the same width, side by side in a
                 // single row.
