@@ -273,14 +273,9 @@
                     return groups;
                 }
 
-                function renderGroup(pageNums) {
-                    var row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'center';
-                    row.style.gap = '0px';
-
+                function renderGroup(row, pageNums) {
                     var containerWidth = container.clientWidth - 32;
-                    var rowWidth = pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth;
+                    var rowWidth = (pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth) * 0.85;
 
                     return Promise.all(pageNums.map(function(pageNum) {
                         return pdf.getPage(pageNum).then(function(page) {
@@ -292,22 +287,47 @@
                             var canvas = document.createElement('canvas');
                             canvas.width = viewport.width;
                             canvas.height = viewport.height;
-                            row.appendChild(canvas);
 
                             var context = canvas.getContext('2d');
-                            return page.render({ canvasContext: context, viewport: viewport }).promise;
+                            return page.render({ canvasContext: context, viewport: viewport }).promise.then(function() {
+                                return canvas;
+                            });
                         });
-                    })).then(function() {
-                        container.appendChild(row);
+                    })).then(function(canvases) {
+                        row.innerHTML = '';
+                        canvases.forEach(function(canvas) {
+                            row.appendChild(canvas);
+                        });
                     });
                 }
 
+                // Pre-create each row in order (with a loading spinner) so
+                // pages land in the right place as each group finishes.
+                // Groups render one after another - some of this PDF's
+                // pages contain very large embedded images that take a
+                // long time to decode the first time, and rendering more
+                // than two pages at once (across groups) was found to
+                // silently corrupt one of the pages, so concurrency is
+                // kept to a single group (at most 2 pages) at a time.
                 var groups = buildGroups(numPages);
+                var rows = groups.map(function() {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'center';
+                    row.style.gap = '0px';
+                    row.innerHTML = '<div class="pdf-loading"><div class="pdf-loading-spinner"></div>Loading page...</div>';
+                    container.appendChild(row);
+                    return row;
+                });
+
                 var chain = Promise.resolve();
-                groups.forEach(function(pageNums) {
+                groups.forEach(function(pageNums, i) {
                     chain = chain.then(function() {
-                        return renderGroup(pageNums);
+                        return renderGroup(rows[i], pageNums);
                     });
+                });
+                chain.catch(function(error) {
+                    console.error('PDF render error:', error);
                 });
             }).catch(function(error) {
                 console.error('PDF load error:', error);
