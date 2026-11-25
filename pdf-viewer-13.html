@@ -251,8 +251,11 @@
                 var numPages = pdf.numPages - 1;
 
                 // Render every page at the same width, side by side in a
-                // single row.
-                function renderBatch(row, pageNums, pageWidth) {
+                // single row. Canvases are inserted before the loading
+                // spinner (which stays at the end of the row, and visible,
+                // until every batch is done) so it's clear more pages are
+                // still coming rather than the row looking finished early.
+                function renderBatch(row, spinner, pageNums, pageWidth) {
                     return Promise.all(pageNums.map(function(pageNum) {
                         return pdf.getPage(pageNum).then(function(page) {
                             var defaultViewport = page.getViewport({ scale: 1 });
@@ -270,10 +273,8 @@
                             });
                         });
                     })).then(function(canvases) {
-                        var spinner = row.querySelector('.pdf-loading');
-                        if (spinner) spinner.remove();
                         canvases.forEach(function(canvas) {
-                            row.appendChild(canvas);
+                            row.insertBefore(canvas, spinner);
                         });
                     });
                 }
@@ -281,8 +282,10 @@
                 var row = document.createElement('div');
                 row.style.display = 'flex';
                 row.style.justifyContent = 'center';
+                row.style.alignItems = 'center';
                 row.style.gap = '10px';
                 row.innerHTML = '<div class="pdf-loading"><div class="pdf-loading-spinner"></div>Loading pages...</div>';
+                var spinner = row.querySelector('.pdf-loading');
                 container.appendChild(row);
 
                 var containerWidth = container.clientWidth - 32;
@@ -302,11 +305,13 @@
                 for (var b = 0; b < pageNumbers.length; b += 2) {
                     (function(batch) {
                         chain = chain.then(function() {
-                            return renderBatch(row, batch, pageWidth);
+                            return renderBatch(row, spinner, batch, pageWidth);
                         });
                     })(pageNumbers.slice(b, b + 2));
                 }
-                chain.catch(function(error) {
+                chain.then(function() {
+                    spinner.remove();
+                }).catch(function(error) {
                     console.error('PDF render error:', error);
                 });
             }).catch(function(error) {
