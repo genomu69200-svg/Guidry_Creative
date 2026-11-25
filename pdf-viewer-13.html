@@ -281,12 +281,13 @@
                 var row = document.createElement('div');
                 row.style.display = 'flex';
                 row.style.justifyContent = 'center';
-                row.style.gap = '0px';
+                row.style.gap = '10px';
                 row.innerHTML = '<div class="pdf-loading"><div class="pdf-loading-spinner"></div>Loading pages...</div>';
                 container.appendChild(row);
 
                 var containerWidth = container.clientWidth - 32;
-                var pageWidth = (containerWidth / numPages) * 0.85;
+                var gapTotal = (numPages - 1) * 10;
+                var pageWidth = ((containerWidth - gapTotal) / numPages) * 0.85;
 
                 // Some of this PDF's pages contain very large embedded
                 // images that take a long time to decode the first time,
