@@ -113,7 +113,6 @@
             box-shadow: var(--shadow-lg);
             border-radius: 8px;
             overflow: hidden;
-            min-height: 800px;
             display: flex;
             flex-direction: column;
         }
@@ -203,10 +202,6 @@
             .pdf-controls {
                 justify-content: center;
             }
-
-            .pdf-viewer-wrapper {
-                min-height: 600px;
-            }
         }
     </style>
 </head>
@@ -253,34 +248,15 @@
 
             pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
                 container.innerHTML = '';
-                var numPages = pdf.numPages;
+                var numPages = pdf.numPages - 1;
 
-                // Matches this PDF's "Two Page View" setup in Acrobat
-                // (PageLayout: TwoPageLeft): pages pair up starting from
-                // page 1, with any trailing odd page alone.
-                function buildGroups(numPages) {
-                    var groups = [];
-                    var i = 1;
-                    while (i <= numPages) {
-                        if (i + 1 <= numPages) {
-                            groups.push([i, i + 1]);
-                            i += 2;
-                        } else {
-                            groups.push([i]);
-                            i += 1;
-                        }
-                    }
-                    return groups;
-                }
-
-                function renderGroup(row, pageNums) {
-                    var containerWidth = container.clientWidth - 32;
-                    var rowWidth = (pageNums.length > 1 ? containerWidth / pageNums.length : containerWidth) * 0.85;
-
+                // Render every page at the same width, side by side in a
+                // single row.
+                function renderBatch(row, pageNums, pageWidth) {
                     return Promise.all(pageNums.map(function(pageNum) {
                         return pdf.getPage(pageNum).then(function(page) {
                             var defaultViewport = page.getViewport({ scale: 1 });
-                            var scale = rowWidth / defaultViewport.width;
+                            var scale = pageWidth / defaultViewport.width;
                             if (scale > 2) scale = 2;
                             var viewport = page.getViewport({ scale: scale });
 
@@ -294,38 +270,41 @@
                             });
                         });
                     })).then(function(canvases) {
-                        row.innerHTML = '';
+                        var spinner = row.querySelector('.pdf-loading');
+                        if (spinner) spinner.remove();
                         canvases.forEach(function(canvas) {
                             row.appendChild(canvas);
                         });
                     });
                 }
 
-                // Pre-create each row in order (with a loading spinner) so
-                // pages land in the right place as each group finishes.
-                // Groups render one after another - some of this PDF's
-                // pages contain very large embedded images that take a
-                // long time to decode the first time, and rendering more
-                // than two pages at once (across groups) was found to
-                // silently corrupt one of the pages, so concurrency is
-                // kept to a single group (at most 2 pages) at a time.
-                var groups = buildGroups(numPages);
-                var rows = groups.map(function() {
-                    var row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'center';
-                    row.style.gap = '0px';
-                    row.innerHTML = '<div class="pdf-loading"><div class="pdf-loading-spinner"></div>Loading page...</div>';
-                    container.appendChild(row);
-                    return row;
-                });
+                var row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'center';
+                row.style.gap = '0px';
+                row.innerHTML = '<div class="pdf-loading"><div class="pdf-loading-spinner"></div>Loading pages...</div>';
+                container.appendChild(row);
+
+                var containerWidth = container.clientWidth - 32;
+                var pageWidth = (containerWidth / numPages) * 0.85;
+
+                // Some of this PDF's pages contain very large embedded
+                // images that take a long time to decode the first time,
+                // and rendering more than two pages at once was found to
+                // silently corrupt one of the pages, so pages are still
+                // rendered two at a time in sequence even though they all
+                // land in the same row.
+                var pageNumbers = [];
+                for (var p = 1; p <= numPages; p++) pageNumbers.push(p);
 
                 var chain = Promise.resolve();
-                groups.forEach(function(pageNums, i) {
-                    chain = chain.then(function() {
-                        return renderGroup(rows[i], pageNums);
-                    });
-                });
+                for (var b = 0; b < pageNumbers.length; b += 2) {
+                    (function(batch) {
+                        chain = chain.then(function() {
+                            return renderBatch(row, batch, pageWidth);
+                        });
+                    })(pageNumbers.slice(b, b + 2));
+                }
                 chain.catch(function(error) {
                     console.error('PDF render error:', error);
                 });
